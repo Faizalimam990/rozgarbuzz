@@ -2,6 +2,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from .serializer import jobserializer  # Ensure this serializer is correctly implemented
 from .models import *
+from django.views.decorators.csrf import csrf_exempt
 
 @api_view(['GET', 'POST', 'PATCH'])
 def home(request):
@@ -25,25 +26,20 @@ def home(request):
             "response": 400,
             "Working": "Method out of Scope"
         })
+@csrf_exempt
 
 @api_view(['POST'])
 def post_job(request):
     try:
-        # Use request.POST to access form data
-        data = request.POST
-        print("Parsed data:", data)
-
-        # Print the CSRF token if it exists in the form data
-        csrf_token = data.get('csrfmiddlewaretoken')
-        print("CSRF Token:", csrf_token)
-
-        serializer = jobserializer(data=data)
+        # request.data automatically contains both form data and file data if it's multipart/form-data
+        serializer = jobserializer(data=request.data)
+        
         if serializer.is_valid():
-            serializer.save()  # Save the data if valid
-            
+            serializer.save()  # Save the job posting if the data is valid
             return Response({
-                "response": 200,
-                "message": "Success"
+                "status": 200,
+                "message": "Success",
+                "data": serializer.data
             })
         else:
             return Response({
@@ -52,11 +48,12 @@ def post_job(request):
                 "errors": serializer.errors
             })
     except Exception as e:
-        print(e)
+        print(e)  # Log the exception for debugging
         return Response({
             "status": 500,
             "message": "An error occurred: " + str(e)
         })
+
     
 @api_view(['GET'])
 def getjob(request):
@@ -64,7 +61,7 @@ def getjob(request):
         # Attempt to retrieve job listings from the database
         joblist = JOBSLISTING.objects.all()  # Ensure this is correct for your model
 
-        # Check if any jobs were found
+        # Check if any jobs were foundx
         if not joblist:
             return Response({"status": 404, "message": "No jobs found."})
 
